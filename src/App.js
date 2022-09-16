@@ -4,7 +4,7 @@ import ReactMapGL, { Marker, FlyToInterpolator } from "react-map-gl";
 import useSupercluster from "use-supercluster";
 import "./App.css";
 
-const fetcher = (...args) => fetch(...args).then(response => response.json());
+const fetcher = (...args) => fetch(...args).then((response) => response.json());
 
 export default function App() {
   const [viewport, setViewport] = useState({
@@ -20,7 +20,7 @@ export default function App() {
     "https://data.police.uk/api/crimes-street/all-crime?lat=52.629729&lng=-1.131592&date=2019-10";
   const { data, error } = useSwr(url, { fetcher });
   const crimes = data && !error ? data.slice(0, 2000) : [];
-  const points = crimes.map(crime => ({
+  const points = crimes.map((crime) => ({
     type: "Feature",
     properties: { cluster: false, crimeId: crime.id, category: crime.category },
     geometry: {
@@ -33,11 +33,7 @@ export default function App() {
   }));
 
   const bounds = mapRef.current
-    ? mapRef.current
-        .getMap()
-        .getBounds()
-        .toArray()
-        .flat()
+    ? mapRef.current.getMap().getBounds().toArray().flat()
     : null;
 
   const { clusters, supercluster } = useSupercluster({
@@ -52,13 +48,13 @@ export default function App() {
       <ReactMapGL
         {...viewport}
         maxZoom={20}
-        mapboxApiAccessToken={process.env.REACT_APP_MAPBOX_TOKEN}
-        onViewportChange={newViewport => {
+        mapboxApiAccessToken="pk.eyJ1IjoiZ2F1cmF2a2h1cmFuYSIsImEiOiJjbDg0b21iZzEwOHc3M29wZG4xbmlxNzN2In0.JaDwGU4-nidX9WstOTOQcg"
+        onViewportChange={(newViewport) => {
           setViewport({ ...newViewport });
         }}
         ref={mapRef}
       >
-        {clusters.map(cluster => {
+        {clusters.map((cluster) => {
           const [longitude, latitude] = cluster.geometry.coordinates;
           const {
             cluster: isCluster,
