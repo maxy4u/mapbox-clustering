@@ -1,11 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import useSwr from "swr";
 import ReactMapGL, { Marker, FlyToInterpolator } from "react-map-gl";
 import useSupercluster from "use-supercluster";
+import Geocoder from "react-map-gl-geocoder";
 import "./App.css";
+import "react-map-gl-geocoder/dist/mapbox-gl-geocoder.css";
 
 const fetcher = (...args) => fetch(...args).then((response) => response.json());
-
+const MAPBOX_TOKEN =
+  "pk.eyJ1IjoiZ2F1cmF2a2h1cmFuYSIsImEiOiJjbDg0b21iZzEwOHc3M29wZG4xbmlxNzN2In0.JaDwGU4-nidX9WstOTOQcg";
 export default function App() {
   const [viewport, setViewport] = useState({
     latitude: 52.6376,
@@ -42,18 +45,42 @@ export default function App() {
     zoom: viewport.zoom,
     options: { radius: 75, maxZoom: 20 }
   });
+  const handleViewportChange = useCallback(
+    (newViewport) => setViewport(newViewport),
+    []
+  );
+
+  // if you are happy with Geocoder default settings, you can just use handleViewportChange directly
+  const handleGeocoderViewportChange = useCallback(
+    (newViewport) => {
+      console.log(newViewport);
+      const geocoderDefaultOverrides = { transitionDuration: 1000 };
+
+      return handleViewportChange({
+        ...newViewport,
+        ...geocoderDefaultOverrides
+      });
+    },
+    [handleViewportChange]
+  );
 
   return (
     <div>
       <ReactMapGL
         {...viewport}
         maxZoom={20}
-        mapboxApiAccessToken="pk.eyJ1IjoiZ2F1cmF2a2h1cmFuYSIsImEiOiJjbDg0b21iZzEwOHc3M29wZG4xbmlxNzN2In0.JaDwGU4-nidX9WstOTOQcg"
+        mapboxApiAccessToken={MAPBOX_TOKEN}
         onViewportChange={(newViewport) => {
           setViewport({ ...newViewport });
         }}
         ref={mapRef}
       >
+        <Geocoder
+          mapRef={mapRef}
+          onViewportChange={handleGeocoderViewportChange}
+          mapboxApiAccessToken={MAPBOX_TOKEN}
+          position="top-left"
+        />
         {clusters.map((cluster) => {
           const [longitude, latitude] = cluster.geometry.coordinates;
           const {
