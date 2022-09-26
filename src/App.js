@@ -1,14 +1,84 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import useSwr from "swr";
-import ReactMapGL, { Marker, FlyToInterpolator } from "react-map-gl";
+import ReactMapGL, {
+  Marker,
+  Layer,
+  Source,
+  NavigationControl
+} from "react-map-gl";
 import useSupercluster from "use-supercluster";
-import Geocoder from "react-map-gl-geocoder";
 import "./App.css";
-import "react-map-gl-geocoder/dist/mapbox-gl-geocoder.css";
 
+export function createFeature(cluster) {
+  const [longitude, latitude] = cluster.geometry.coordinates;
+  return {
+    type: "Feature",
+    properties: {
+      id: cluster.id,
+      point_count: cluster.properties.point_count,
+      PointCount: `${cluster.properties.point_count}`
+    },
+    geometry: {
+      type: "Point",
+      coordinates: [longitude, latitude]
+    }
+  };
+}
+
+export function createGeoJson(clusters) {
+  const filteredClusters = clusters.filter(
+    (cluster) => cluster.properties.cluster
+  );
+  const features = filteredClusters.map((cluster) => createFeature(cluster));
+  return {
+    type: "FeatureCollection",
+    features
+  };
+}
+const initialViewState = {
+  latitude: 40.67,
+  longitude: -103.59,
+  zoom: 3
+};
+const interactiveLayerIds = ["clusters"];
 const fetcher = (...args) => fetch(...args).then((response) => response.json());
 const MAPBOX_TOKEN =
   "pk.eyJ1IjoiZ2F1cmF2a2h1cmFuYSIsImEiOiJjbDg0b21iZzEwOHc3M29wZG4xbmlxNzN2In0.JaDwGU4-nidX9WstOTOQcg";
+const circleLayer = {
+  id: "clusters",
+  type: "circle",
+  source: "assets-source",
+  sourceId: "assets-source",
+  paint: {
+    "circle-color": [
+      "step",
+      ["get", "point_count"],
+      "#51bbd6",
+      100,
+      "#f1f075",
+      750,
+      "#f28cb1"
+    ],
+    "circle-radius": ["step", ["get", "point_count"], 20, 100, 30, 750, 40]
+  }
+};
+
+const pointsLayer = {
+  id: "clusters-count",
+  type: "symbol",
+  source: "assets-source",
+  sourceId: "assets-source",
+  layout: {
+    "text-field": [
+      "format",
+      ["upcase", ["get", "PointCount"]],
+      {
+        "font-scale": 1.0
+      }
+    ]
+    // "text-font": ["sans-serif"]
+  }
+};
 export default function App() {
   const [viewport, setViewport] = useState({
     latitude: 52.6376,
@@ -45,98 +115,86 @@ export default function App() {
     zoom: viewport.zoom,
     options: { radius: 75, maxZoom: 20 }
   });
-  const handleViewportChange = useCallback(
-    (newViewport) => setViewport(newViewport),
-    []
-  );
-
-  // if you are happy with Geocoder default settings, you can just use handleViewportChange directly
-  const handleGeocoderViewportChange = useCallback(
-    (newViewport) => {
-      console.log(newViewport);
-      const geocoderDefaultOverrides = { transitionDuration: 1000 };
-
-      return handleViewportChange({
-        ...newViewport,
-        ...geocoderDefaultOverrides
-      });
+  const geojsonData = useMemo(() => createGeoJson(clusters), [clusters]);
+  const onClick = useCallback(
+    (e) => {
+      debugger;
+      let expansionZoom;
+      const { lng: longitude, lat: latitude } = e.lngLat;
+      const [clickedCluster] = e.features.filter(
+        (x) => x.layer.id === "clusters"
+      );
+      if (clickedCluster?.properties?.id) {
+        expansionZoom = Math.min(
+          supercluster.getClusterExpansionZoom(clickedCluster.properties.id),
+          20
+        );
+        debugger;
+        mapRef.current.easeTo({
+          center: [longitude, latitude],
+          zoom: expansionZoom,
+          duration: 500
+        });
+      }
     },
-    [handleViewportChange]
+    [supercluster]
   );
+
+  const onMove = useCallback((evt) => {
+    debugger;
+    setViewport(evt.viewState);
+  }, []);
+  console.log(geojsonData);
 
   return (
     <div>
       <ReactMapGL
+        initialViewState={initialViewState}
+        onClick={onClick}
+        id="crimeMap"
         {...viewport}
         maxZoom={20}
-        mapboxApiAccessToken={MAPBOX_TOKEN}
-        onViewportChange={(newViewport) => {
-          setViewport({ ...newViewport });
-        }}
+        mapStyle="mapbox://styles/mapbox/streets-v9"
+        mapboxAccessToken={MAPBOX_TOKEN}
+        onMove={onMove}
         ref={mapRef}
+        interactiveLayerIds={interactiveLayerIds}
       >
-        <Geocoder
-          mapRef={mapRef}
-          onViewportChange={handleGeocoderViewportChange}
-          mapboxApiAccessToken={MAPBOX_TOKEN}
-          position="top-left"
-        />
-        {clusters.map((cluster) => {
-          const [longitude, latitude] = cluster.geometry.coordinates;
-          const {
-            cluster: isCluster,
-            point_count: pointCount
-          } = cluster.properties;
+        <NavigationControl position="top-left" />
+        <Source
+          id="assets-source"
+          type="geojson"
+          data={geojsonData}
+          cluster={true}
+          clusterMaxZoom={14}
+          clusterRadius={50}
+        >
+          {clusters.map((cluster) => {
+            const [longitude, latitude] = cluster.geometry.coordinates;
+            const { cluster_id, cluster: isCluster } = cluster.properties;
 
-          if (isCluster) {
+            if (isCluster) {
+              return (
+                <div key={`${cluster_id}`}>
+                  <Layer {...circleLayer} />
+                  <Layer {...pointsLayer} />
+                </div>
+              );
+            }
+
             return (
               <Marker
-                key={`cluster-${cluster.id}`}
+                key={`crime-${cluster.properties.crimeId}`}
                 latitude={latitude}
                 longitude={longitude}
               >
-                <div
-                  className="cluster-marker"
-                  style={{
-                    width: `${10 + (pointCount / points.length) * 20}px`,
-                    height: `${10 + (pointCount / points.length) * 20}px`
-                  }}
-                  onClick={() => {
-                    const expansionZoom = Math.min(
-                      supercluster.getClusterExpansionZoom(cluster.id),
-                      20
-                    );
-
-                    setViewport({
-                      ...viewport,
-                      latitude,
-                      longitude,
-                      zoom: expansionZoom,
-                      transitionInterpolator: new FlyToInterpolator({
-                        speed: 2
-                      }),
-                      transitionDuration: "auto"
-                    });
-                  }}
-                >
-                  {pointCount}
-                </div>
+                <button className="crime-marker">
+                  <img src="/custody.svg" alt="crime doesn't pay" />
+                </button>
               </Marker>
             );
-          }
-
-          return (
-            <Marker
-              key={`crime-${cluster.properties.crimeId}`}
-              latitude={latitude}
-              longitude={longitude}
-            >
-              <button className="crime-marker">
-                <img src="/custody.svg" alt="crime doesn't pay" />
-              </button>
-            </Marker>
-          );
-        })}
+          })}
+        </Source>
       </ReactMapGL>
     </div>
   );
