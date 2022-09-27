@@ -4,11 +4,15 @@ import ReactMapGL, {
   Marker,
   Layer,
   Source,
-  NavigationControl,
-  FullscreenControl
+  NavigationControl
 } from "react-map-gl";
 import useSupercluster from "use-supercluster";
 import "./App.css";
+//import 'mapbox-gl/dist/mapbox-gl.css';
+//import 'mapbox-gl/dist/svg/mapboxgl-ctrl-compass.svg';
+//import 'mapbox-gl/dist/svg/mapboxgl-ctrl-geolocate.svg';
+//import 'mapbox-gl/dist/svg/mapboxgl-ctrl-zoom-in.svg';
+//import 'mapbox-gl/dist/svg/mapboxgl-ctrl-zoom-out.svg';
 
 export function createFeature(cluster) {
   const [longitude, latitude] = cluster.geometry.coordinates;
@@ -163,7 +167,6 @@ export default function App() {
         interactiveLayerIds={interactiveLayerIds}
       >
         <NavigationControl position="top-left" />
-        <FullscreenControl position="top-left" />
         <Source
           id="assets-source"
           type="geojson"
