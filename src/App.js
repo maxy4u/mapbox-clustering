@@ -4,13 +4,15 @@ import ReactMapGL, {
   Marker,
   Layer,
   Source,
-  NavigationControl
+  NavigationControl,
+  FullscreenControl
 } from "react-map-gl";
 import useSupercluster from "use-supercluster";
 import "./App.css";
 
 export function createFeature(cluster) {
   const [longitude, latitude] = cluster.geometry.coordinates;
+  debugger;
   return {
     type: "Feature",
     properties: {
@@ -161,6 +163,7 @@ export default function App() {
         interactiveLayerIds={interactiveLayerIds}
       >
         <NavigationControl position="top-left" />
+        <FullscreenControl position="top-left" />
         <Source
           id="assets-source"
           type="geojson"
@@ -169,22 +172,36 @@ export default function App() {
           clusterMaxZoom={14}
           clusterRadius={50}
         >
-          {clusters.map((cluster) => {
+          {clusters.map((cluster, index) => {
             const [longitude, latitude] = cluster.geometry.coordinates;
             const { cluster_id, cluster: isCluster } = cluster.properties;
 
             if (isCluster) {
               return (
-                <div key={`${cluster_id}`}>
-                  <Layer {...circleLayer} />
-                  <Layer {...pointsLayer} />
+                <div
+                  key={`cluster-${
+                    cluster.properties.crimeId || cluster_id
+                  }-${index}`}
+                >
+                  <Layer
+                    key={`circle-${
+                      cluster.properties.crimeId || cluster_id
+                    }-${index}`}
+                    {...circleLayer}
+                  />
+                  <Layer
+                    key={`point-${
+                      cluster.properties.crimeId || cluster_id
+                    }-${index}`}
+                    {...pointsLayer}
+                  />
                 </div>
               );
             }
 
             return (
               <Marker
-                key={`crime-${cluster.properties.crimeId}`}
+                key={`crime-${cluster.properties.crimeId}-${index}`}
                 latitude={latitude}
                 longitude={longitude}
               >
