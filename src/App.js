@@ -8,6 +8,7 @@ import ReactMapGL, {
 } from "react-map-gl";
 import useSupercluster from "use-supercluster";
 import "./App.css";
+import "mapbox-gl/dist/mapbox-gl.css";
 //import 'mapbox-gl/dist/mapbox-gl.css';
 //import 'mapbox-gl/dist/svg/mapboxgl-ctrl-compass.svg';
 //import 'mapbox-gl/dist/svg/mapboxgl-ctrl-geolocate.svg';
@@ -147,13 +148,12 @@ export default function App() {
   );
 
   const onMove = useCallback((evt) => {
-    debugger;
     setViewport(evt.viewState);
   }, []);
   console.log(geojsonData);
 
   return (
-    <div>
+    <div className="mapcont">
       <ReactMapGL
         initialViewState={initialViewState}
         onClick={onClick}

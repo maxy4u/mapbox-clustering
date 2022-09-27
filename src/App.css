@@ -1,4 +1,4 @@
-.mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out.mapboxgl-ctrl-icon {
+/* .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out.mapboxgl-ctrl-icon {
   background-image: url("../node_modules/mapbox-gl/src/css/svg/mapboxgl-ctrl-zoom-out.svg");
 }
 
@@ -8,7 +8,7 @@
 
 .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-in.mapboxgl-ctrl-icon {
   background-image: url("../node_modules/mapbox-gl/src/css/svg/mapboxgl-ctrl-zoom-in.svg");
-}
+} */
 
 .cluster-marker {
   color: #fff;
@@ -27,4 +27,21 @@
 
 .crime-marker img {
   width: 25px;
+}
+
+.mapboxgl-canvas {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body,
+html,
+#root,
+.mapcont {
+  height: 100%;
+  width: 100%;
 }
