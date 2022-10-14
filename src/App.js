@@ -197,9 +197,15 @@ export default function App() {
   const ShowHidePopUp = useCallback(
     () =>
       popup && (
-        <Popup latitude={popup.latitude} longitude={popup.longitude}>
+        <Popup
+          latitude={popup.latitude}
+          longitude={popup.longitude}
+          closeButton={true}
+          closeOnClick={true}
+          onClose={handlePopupClose}
+          anchor="top"
+        >
           <div className="popup">
-            <div onClick={handlePopupClose}>x</div>
             <h2>{popup.crimeId}</h2>
             <p>{popup.category}</p>
           </div>
