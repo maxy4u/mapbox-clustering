@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none" class='gaurav'>
+  <rect width="18" height="18" rx="9" fill="#000" fill-opacity=".5"/>
+  <g clip-path="url(#a)">
+    <path d="M13.5 5h-9c-.55 0-1 .45-1 1v5.5h1c0 .85.65 1.5 1.5 1.5s1.5-.65 1.5-1.5c0 .85.65 1.5 1.5 1.5s1.5-.65 1.5-1.5h4V6c0-.55-.45-1-1-1ZM9.55 7.25c0-.3-.25-.45-.6-.45s-.65.2-.85.5l-1-.55c.35-.6 1-1.05 2-1.05 1.05 0 1.8.45 1.8 1.3 0 1.1-1.1 1.25-1.1 1.9H8.6c0-.9.95-1.15.95-1.65Zm-1.15 2.8c0-.4.3-.7.75-.7s.75.3.75.7c0 .4-.3.75-.75.75-.4-.05-.75-.35-.75-.75Z" fill="#fff"/>
+  </g>
+  <defs>
+    <clipPath id="a">
+      <path fill="#fff" transform="translate(3 3)" d="M0 0h12v12H0z"/>
+    </clipPath>
+  </defs>
+</svg>

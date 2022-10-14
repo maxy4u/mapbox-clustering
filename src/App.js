@@ -1,53 +1,42 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import useSwr from "swr";
 import ReactMapGL, {
-  Marker,
   Layer,
   Source,
-  NavigationControl
+  NavigationControl,
+  Popup
 } from "react-map-gl";
 import useSupercluster from "use-supercluster";
 import "./App.css";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { ReactComponent as TruckLogo } from "./truck.svg";
+import { renderToStaticMarkup } from "react-dom/server";
 //import 'mapbox-gl/dist/mapbox-gl.css';
 //import 'mapbox-gl/dist/svg/mapboxgl-ctrl-compass.svg';
 //import 'mapbox-gl/dist/svg/mapboxgl-ctrl-geolocate.svg';
 //import 'mapbox-gl/dist/svg/mapboxgl-ctrl-zoom-in.svg';
 //import 'mapbox-gl/dist/svg/mapboxgl-ctrl-zoom-out.svg';
 
-export function createFeature(cluster) {
-  const [longitude, latitude] = cluster.geometry.coordinates;
-  debugger;
-  return {
-    type: "Feature",
-    properties: {
-      id: cluster.id,
-      point_count: cluster.properties.point_count,
-      PointCount: `${cluster.properties.point_count}`
-    },
-    geometry: {
-      type: "Point",
-      coordinates: [longitude, latitude]
-    }
-  };
+export function svgToDataUrl(svgAsPath, svgAsJSX) {
+  return new Promise((resolve) => {
+    const image = new Image(20, 20);
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", (e) => {
+      throw new Error("SVG conversion failed");
+    });
+    const svgString = encodeURIComponent(renderToStaticMarkup(svgAsJSX));
+    const dataUri = `data:image/svg+xml;charset=utf-8,${svgString}`;
+    const src = svgAsJSX ? dataUri : svgAsPath;
+    image.src = src;
+  });
 }
 
-export function createGeoJson(clusters) {
-  const filteredClusters = clusters.filter(
-    (cluster) => cluster.properties.cluster
-  );
-  const features = filteredClusters.map((cluster) => createFeature(cluster));
-  return {
-    type: "FeatureCollection",
-    features
-  };
-}
 const initialViewState = {
   latitude: 40.67,
   longitude: -103.59,
   zoom: 3
 };
-const interactiveLayerIds = ["clusters"];
+const interactiveLayerIds = ["clusters", "marker"];
 const fetcher = (...args) => fetch(...args).then((response) => response.json());
 const MAPBOX_TOKEN =
   "pk.eyJ1IjoiZ2F1cmF2a2h1cmFuYSIsImEiOiJjbDg0b21iZzEwOHc3M29wZG4xbmlxNzN2In0.JaDwGU4-nidX9WstOTOQcg";
@@ -56,6 +45,7 @@ const circleLayer = {
   type: "circle",
   source: "assets-source",
   sourceId: "assets-source",
+  filter: ["has", "point_count"],
   paint: {
     "circle-color": [
       "step",
@@ -75,42 +65,68 @@ const pointsLayer = {
   type: "symbol",
   source: "assets-source",
   sourceId: "assets-source",
+  filter: ["has", "point_count"],
   layout: {
     "text-field": [
       "format",
-      ["upcase", ["get", "PointCount"]],
+      ["get", "point_count"],
       {
         "font-scale": 1.0
       }
     ]
-    // "text-font": ["sans-serif"]
+  }
+};
+
+export const markerLayer = {
+  id: "marker",
+  type: "symbol",
+  source: "assets-source",
+  sourceId: "assets-source",
+  filter: ["!=", "cluster", true],
+  layout: {
+    "icon-image": "truck", // reference the image
+    "icon-size": 1
   }
 };
 export default function App() {
+  const [popup, setPopup] = useState(null);
   const [viewport, setViewport] = useState({
     latitude: 52.6376,
     longitude: -1.135171,
     width: "100vw",
     height: "100vh",
-    zoom: 12
+    zoom: 6
   });
   const mapRef = useRef();
+  const onMapLoad = useCallback(() => {
+    const map = mapRef.current.getMap();
+    async function addImage(svg) {
+      const image = await svgToDataUrl(false, svg);
+      if (!map.hasImage("truck")) map.addImage("truck", image);
+    }
+    addImage(<TruckLogo />);
+  }, [mapRef]);
 
   const url =
     "https://data.police.uk/api/crimes-street/all-crime?lat=52.629729&lng=-1.131592&date=2019-10";
   const { data, error } = useSwr(url, { fetcher });
   const crimes = data && !error ? data.slice(0, 2000) : [];
-  const points = crimes.map((crime) => ({
-    type: "Feature",
-    properties: { cluster: false, crimeId: crime.id, category: crime.category },
-    geometry: {
-      type: "Point",
-      coordinates: [
-        parseFloat(crime.location.longitude),
-        parseFloat(crime.location.latitude)
-      ]
-    }
-  }));
+  const points = useMemo(
+    () =>
+      crimes.map((crime) => ({
+        type: "Feature",
+        properties: {
+          cluster: false,
+          crimeId: crime.id,
+          category: crime.category
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [crime.location.longitude, crime.location.latitude]
+        }
+      })),
+    [crimes]
+  );
 
   const bounds = mapRef.current
     ? mapRef.current.getMap().getBounds().toArray().flat()
@@ -120,100 +136,100 @@ export default function App() {
     points,
     bounds,
     zoom: viewport.zoom,
-    options: { radius: 75, maxZoom: 20 }
+    options: { radius: 50, maxZoom: 20 }
   });
-  const geojsonData = useMemo(() => createGeoJson(clusters), [clusters]);
+  // Reset the popup state and the selected marker when the popup is closed
+  const handlePopupClose = useCallback(() => {
+    setPopup(null);
+  }, []);
+
+  // Pass data that is needed to display the popup and set that marker as selected
+  const handleMarkerClicked = useCallback((marker) => {
+    const [longitude, latitude] = marker?.geometry?.coordinates;
+
+    // Clicking on the marker will set where the popup will appears and what it displays
+    setPopup({
+      latitude,
+      longitude,
+      ...marker.properties
+    });
+  }, []);
+  const geojsonData = useMemo(
+    () => ({ type: "FeatureCollection", features: clusters }),
+    [clusters]
+  );
   const onClick = useCallback(
     (e) => {
-      debugger;
-      let expansionZoom;
       const { lng: longitude, lat: latitude } = e.lngLat;
       const [clickedCluster] = e.features.filter(
         (x) => x.layer.id === "clusters"
       );
-      if (clickedCluster?.properties?.id) {
-        expansionZoom = Math.min(
-          supercluster.getClusterExpansionZoom(clickedCluster.properties.id),
+      const [clickedMarker] = e.features.filter((x) => x.layer.id === "marker");
+      if (clickedMarker) {
+        handleMarkerClicked(clickedMarker);
+        return;
+      }
+
+      if (clickedCluster?.properties?.cluster_id) {
+        const expansionZoom = Math.min(
+          supercluster.getClusterExpansionZoom(
+            clickedCluster.properties.cluster_id
+          ),
           20
         );
-        debugger;
+
         mapRef.current.easeTo({
           center: [longitude, latitude],
           zoom: expansionZoom,
-          duration: 500
+          duration: 1000
         });
+        return;
       }
+      handlePopupClose();
     },
-    [supercluster]
+    [supercluster, mapRef]
   );
 
   const onMove = useCallback((evt) => {
     setViewport(evt.viewState);
   }, []);
-  console.log(geojsonData);
+
+  const ShowHidePopUp = useCallback(
+    () =>
+      popup && (
+        <Popup latitude={popup.latitude} longitude={popup.longitude}>
+          <div className="popup">
+            <div onClick={handlePopupClose}>x</div>
+            <h2>{popup.crimeId}</h2>
+            <p>{popup.category}</p>
+          </div>
+        </Popup>
+      ),
+    [popup, handlePopupClose]
+  );
 
   return (
     <div className="mapcont">
       <ReactMapGL
+        {...viewport}
         initialViewState={initialViewState}
         onClick={onClick}
         id="crimeMap"
-        {...viewport}
         maxZoom={20}
+        onLoad={onMapLoad}
         mapStyle="mapbox://styles/mapbox/streets-v9"
         mapboxAccessToken={MAPBOX_TOKEN}
-        onMove={onMove}
         ref={mapRef}
+        onMove={onMove}
         interactiveLayerIds={interactiveLayerIds}
+        onViewportChange={setViewport}
       >
+        <ShowHidePopUp />
         <NavigationControl position="top-left" />
-        <Source
-          id="assets-source"
-          type="geojson"
-          data={geojsonData}
-          cluster={true}
-          clusterMaxZoom={14}
-          clusterRadius={50}
-        >
-          {clusters.map((cluster, index) => {
-            const [longitude, latitude] = cluster.geometry.coordinates;
-            const { cluster_id, cluster: isCluster } = cluster.properties;
-
-            if (isCluster) {
-              return (
-                <div
-                  key={`cluster-${
-                    cluster.properties.crimeId || cluster_id
-                  }-${index}`}
-                >
-                  <Layer
-                    key={`circle-${
-                      cluster.properties.crimeId || cluster_id
-                    }-${index}`}
-                    {...circleLayer}
-                  />
-                  <Layer
-                    key={`point-${
-                      cluster.properties.crimeId || cluster_id
-                    }-${index}`}
-                    {...pointsLayer}
-                  />
-                </div>
-              );
-            }
-
-            return (
-              <Marker
-                key={`crime-${cluster.properties.crimeId}-${index}`}
-                latitude={latitude}
-                longitude={longitude}
-              >
-                <button className="crime-marker">
-                  <img src="/custody.svg" alt="crime doesn't pay" />
-                </button>
-              </Marker>
-            );
-          })}
+        <Source id="assets-source" type="geojson" data={geojsonData}>
+          <Layer {...circleLayer} />
+          <Layer {...pointsLayer} />
+          <Layer {...markerLayer} />
         </Source>
       </ReactMapGL>
     </div>
