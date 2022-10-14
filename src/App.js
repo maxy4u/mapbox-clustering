@@ -4,18 +4,15 @@ import ReactMapGL, {
   Layer,
   Source,
   NavigationControl,
-  Popup
+  Popup,
+  MapProvider
 } from "react-map-gl";
 import useSupercluster from "use-supercluster";
 import "./App.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { ReactComponent as TruckLogo } from "./truck.svg";
 import { renderToStaticMarkup } from "react-dom/server";
-//import 'mapbox-gl/dist/mapbox-gl.css';
-//import 'mapbox-gl/dist/svg/mapboxgl-ctrl-compass.svg';
-//import 'mapbox-gl/dist/svg/mapboxgl-ctrl-geolocate.svg';
-//import 'mapbox-gl/dist/svg/mapboxgl-ctrl-zoom-in.svg';
-//import 'mapbox-gl/dist/svg/mapboxgl-ctrl-zoom-out.svg';
+import CustomOverlay from "./CustomOverlay";
 
 export function svgToDataUrl(svgAsPath, svgAsJSX) {
   return new Promise((resolve) => {
@@ -216,28 +213,31 @@ export default function App() {
 
   return (
     <div className="mapcont">
-      <ReactMapGL
-        {...viewport}
-        initialViewState={initialViewState}
-        onClick={onClick}
-        id="crimeMap"
-        maxZoom={20}
-        onLoad={onMapLoad}
-        mapStyle="mapbox://styles/mapbox/streets-v9"
-        mapboxAccessToken={MAPBOX_TOKEN}
-        ref={mapRef}
-        onMove={onMove}
-        interactiveLayerIds={interactiveLayerIds}
-        onViewportChange={setViewport}
-      >
-        <ShowHidePopUp />
-        <NavigationControl position="top-left" />
-        <Source id="assets-source" type="geojson" data={geojsonData}>
-          <Layer {...circleLayer} />
-          <Layer {...pointsLayer} />
-          <Layer {...markerLayer} />
-        </Source>
-      </ReactMapGL>
+      <MapProvider>
+        <ReactMapGL
+          {...viewport}
+          initialViewState={initialViewState}
+          onClick={onClick}
+          id="crimeMap"
+          maxZoom={20}
+          onLoad={onMapLoad}
+          mapStyle="mapbox://styles/mapbox/streets-v9"
+          mapboxAccessToken={MAPBOX_TOKEN}
+          ref={mapRef}
+          onMove={onMove}
+          interactiveLayerIds={interactiveLayerIds}
+          onViewportChange={setViewport}
+        >
+          <ShowHidePopUp />
+          <NavigationControl position="bottom-right" />
+          <Source id="assets-source" type="geojson" data={geojsonData}>
+            <Layer {...circleLayer} />
+            <Layer {...pointsLayer} />
+            <Layer {...markerLayer} />
+          </Source>
+          <CustomOverlay supercluster={supercluster} />
+        </ReactMapGL>
+      </MapProvider>
     </div>
   );
 }
