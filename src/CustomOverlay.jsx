@@ -30,7 +30,7 @@ const CustomOverlay = ({ supercluster }) => {
       )) ||
     [];
   // getLeaves only display first 10 points by default use Infinity as second parameter
-  console.log(leaves); // show visible points in first cluster
+  //console.log(leaves); // show visible points in first cluster
 
   return (
     <div class="map-overlay">

@@ -14,6 +14,21 @@ import { ReactComponent as TruckLogo } from "./truck.svg";
 import { renderToStaticMarkup } from "react-dom/server";
 import CustomOverlay from "./CustomOverlay";
 
+const crimeCategories = [
+  "violent-crime",
+  "burglary",
+  "anti-social-behaviour",
+  "other-theft",
+  "criminal-damage-arson",
+  "vehicle-crime",
+  "public-order",
+  "shoplifting",
+  "theft-from-the-person",
+  "drugs",
+  "robbery",
+  "bicycle-theft"
+];
+
 export function svgToDataUrl(svgAsPath, svgAsJSX) {
   return new Promise((resolve) => {
     const image = new Image(20, 20);
@@ -76,15 +91,73 @@ const pointsLayer = {
 
 export const markerLayer = {
   id: "marker",
-  type: "symbol",
+  type: "circle",
+  //type: "symbol",
   source: "assets-source",
   sourceId: "assets-source",
-  filter: ["!=", "cluster", true],
-  layout: {
-    "icon-image": "truck", // reference the image
-    "icon-size": 1
+  filter: [
+    "in",
+    "category",
+    "burglary",
+    "anti-social-behaviour",
+    "other-theft",
+    "criminal-damage-arson",
+    "vehicle-crime",
+    "public-order",
+    "shoplifting",
+    "theft-from-the-person",
+    "drugs",
+    "robbery",
+    "bicycle-theft"
+  ],
+  // layout: {
+  //   "icon-image": "truck", // reference the image
+  //   "icon-size": 1
+  // },
+  paint: {
+    "circle-color": [
+      "match", // Use the 'match' expression: https://docs.mapbox.com/mapbox-gl-js/style-spec/#expressions-match
+      ["get", "category"], // Use the result 'STORE_TYPE' property
+      "drugs",
+      "#FF8C00",
+      "burglary",
+      "#FF8C00",
+      "anti-social-behaviour",
+      "#FF8C00",
+      "other-theft",
+      "#9ACD32",
+      "criminal-damage-arson",
+      "#008000",
+      "vehicle-crime",
+      "#008000",
+      "public-order",
+      "#008000",
+      "shoplifting",
+      "#008000",
+      "theft-from-the-person",
+      "#008000",
+      "#FF0000" // any other store type
+    ],
+    "circle-radius": 20
   }
 };
+
+const violentCrimeLayer = {
+  id: "Crime-Violent",
+  type: "symbol",
+  //type: "circle",
+  source: "assets-source",
+  sourceId: "assets-source",
+  filter: ["==", "category", "violent-crime"],
+  layout: {
+    "icon-image": "pulsing-dot"
+  }
+  // paint: {
+  //   "circle-color": "#FFA500",
+  //   "circle-radius": 20
+  // }
+};
+
 export default function App() {
   const [popup, setPopup] = useState(null);
   const [viewport, setViewport] = useState({
@@ -95,13 +168,75 @@ export default function App() {
     zoom: 6
   });
   const mapRef = useRef();
+
   const onMapLoad = useCallback(() => {
     const map = mapRef.current.getMap();
+    const size = 200;
+
+    // This implements `StyleImageInterface`
+    // to draw a pulsing dot icon on the map.
+    const pulsingDot = {
+      width: size,
+      height: size,
+      data: new Uint8Array(size * size * 4),
+
+      // When the layer is added to the map,
+      // get the rendering context for the map canvas.
+      onAdd: function () {
+        const canvas = document.createElement("canvas");
+        canvas.width = this.width;
+        canvas.height = this.height;
+        this.context = canvas.getContext("2d");
+      },
+
+      // Call once before every frame where the icon will be used.
+      render: function () {
+        const duration = 1000;
+        const t = (performance.now() % duration) / duration;
+
+        const radius = (size / 2) * 0.3;
+        const outerRadius = (size / 2) * 0.7 * t + radius;
+        const context = this.context;
+
+        // Draw the outer circle.
+        context.clearRect(0, 0, this.width, this.height);
+        context.beginPath();
+        context.arc(
+          this.width / 2,
+          this.height / 2,
+          outerRadius,
+          0,
+          Math.PI * 2
+        );
+        context.fillStyle = `rgba(255, 200, 200, ${1 - t})`;
+        context.fill();
+
+        // Draw the inner circle.
+        context.beginPath();
+        context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
+        context.fillStyle = "rgba(255, 100, 100, 1)";
+        context.strokeStyle = "white";
+        context.lineWidth = 2 + 4 * (1 - t);
+        context.fill();
+        context.stroke();
+
+        // Update this image's data with data from the canvas.
+        this.data = context.getImageData(0, 0, this.width, this.height).data;
+
+        // Continuously repaint the map, resulting
+        // in the smooth animation of the dot.
+        map.triggerRepaint();
+
+        // Return `true` to let the map know that the image was updated.
+        return true;
+      }
+    };
     async function addImage(svg) {
       const image = await svgToDataUrl(false, svg);
       if (!map.hasImage("truck")) map.addImage("truck", image);
     }
     addImage(<TruckLogo />);
+    map.addImage("pulsing-dot", pulsingDot, { pixelRatio: 2 });
   }, [mapRef]);
 
   const url =
@@ -211,6 +346,8 @@ export default function App() {
     [popup, handlePopupClose]
   );
 
+  console.log(geojsonData);
+
   return (
     <div className="mapcont">
       <MapProvider>
@@ -234,6 +371,7 @@ export default function App() {
             <Layer {...circleLayer} />
             <Layer {...pointsLayer} />
             <Layer {...markerLayer} />
+            <Layer {...violentCrimeLayer} />
           </Source>
           <CustomOverlay supercluster={supercluster} />
         </ReactMapGL>
